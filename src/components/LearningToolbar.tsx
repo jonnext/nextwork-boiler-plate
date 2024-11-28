@@ -1,13 +1,13 @@
 import React from "react";
 import { Menu, Bell, Settings } from "lucide-react";
 
-interface FloatingToolbarProps {
+interface LearningToolbarProps {
   onSignIn?: () => void;
   onNotification?: () => void;
   onSettings?: () => void;
 }
 
-const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
+const LearningToolbar: React.FC<LearningToolbarProps> = ({
   onSignIn,
   onNotification,
   onSettings,
@@ -45,20 +45,17 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
             </button>
 
             {/* First vertical divider */}
-            <div className="h-12 w-[1px] bg-[#f2f4f7]" />
+            <div className="h-12 w-[1px] bg-[#dfdfdf]" />
 
             {/* Sign in button */}
             <button
               className="px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
               onClick={onSignIn}
             >
-              <span className="text-[#004eea] text-base font-semibold font-['Inter'] leading-normal">
+              <span className="text-[#004eea] text-base font-semibold font-['Inter'] leading-normal whitespace-nowrap">
                 Sign In
               </span>
             </button>
-
-            {/* Second vertical divider */}
-            <div className="h-12 w-[1px] bg-[#f2f4f7]" />
           </div>
         </div>
       </div>

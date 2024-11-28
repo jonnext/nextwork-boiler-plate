@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import TopProgressBar from "./components/TopProgressBar";
 import ProjectDetails from "./components/ProjectDetails";
+import LearningToolbar from "./components/LearningToolbar";
 
 function App() {
   const [selectedOS, setSelectedOS] = useState<"MacOS" | "Windows" | "Linux">(
@@ -14,7 +15,7 @@ function App() {
         <TopProgressBar />
       </div>
       <div className="mx-auto max-w-[688px]">
-        <div className="w-[688px] h-screen flex flex-col pt-16 gap-16">
+        <div className="w-[688px] flex flex-col pt-16 gap-16">
           <div className="h-[142px] flex-col justify-start items-start gap-4 inline-flex">
             <div className="justify-start items-center gap-4 inline-flex">
               <div className="px-2.5 py-1 bg-white rounded-lg shadow border border-[#d0d5dd] justify-start items-center gap-1.5 flex">
@@ -56,7 +57,23 @@ function App() {
               with your BankerBot using voice commands!
             </div>
           </div>
+          <div className="flex flex-col gap-4">
+            <div className="text-left self-stretch text-[#101828] text-lg font-normal font-['Inter'] leading-7">
+              Want a complete demo of how to do this project, from start to
+              finish? Check out our 🎬 walkthrough with Natasha 🎬
+            </div>
+            <iframe
+              className="w-full aspect-video rounded-lg"
+              src="https://www.youtube.com/embed/Ab_ybGhjHz4"
+              title="Project Walkthrough with Natasha"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
         </div>
+      </div>
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 mb-36 z-50">
+        <LearningToolbar />
       </div>
     </div>
   );

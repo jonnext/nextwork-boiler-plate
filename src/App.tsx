@@ -1,20 +1,297 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import TopProgressBar from "./components/TopProgressBar";
 import ProjectDetails from "./components/ProjectDetails";
 import LearningToolbar from "./components/LearningToolbar";
+import ExpandablePrompt from "./components/ExpandablePrompt";
+import Note from "./components/Note";
+import { createRoot } from "react-dom/client";
+
+const API_ENDPOINT = "YOUR_AI_API_ENDPOINT";
 
 function App() {
   const [selectedOS, setSelectedOS] = useState<"MacOS" | "Windows" | "Linux">(
     "MacOS"
   );
+  const [isTextSelected, setIsTextSelected] = useState(false);
+  const [selectionPosition, setSelectionPosition] = useState({ x: 0, y: 0 });
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentSelection, setCurrentSelection] = useState<{
+    range: Range;
+    text: string;
+  } | null>(null);
+  const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
+  const [notes, setNotes] = useState<
+    Array<{
+      text: string;
+      range: Range;
+      id: string;
+      container: HTMLElement;
+    }>
+  >([]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      const selection = window.getSelection();
+      console.log("Mouse up - Selection:", {
+        hasSelection: !!selection,
+        text: selection?.toString(),
+      });
+
+      if (selection && selection.toString().trim().length > 0) {
+        try {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+
+          setSelectionRect(rect);
+          setCurrentSelection({
+            range: range.cloneRange(),
+            text: selection.toString(),
+          });
+
+          setSelectionPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top,
+          });
+          setIsTextSelected(true);
+        } catch (error) {
+          console.error("Error getting selection position:", error);
+        }
+      }
+    };
+
+    const handleScroll = () => {
+      if (selectionRect && isTextSelected) {
+        const updatedRect = currentSelection?.range.getBoundingClientRect();
+        if (updatedRect) {
+          setSelectionPosition({
+            x: updatedRect.left + updatedRect.width / 2,
+            y: updatedRect.top,
+          });
+        }
+      }
+    };
+
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("scroll", handleScroll, true);
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".expandable-prompt")) {
+        // Reset all states to default
+        setIsTextSelected(false);
+        setCurrentSelection(null);
+        setIsExpanded(false);
+        window.getSelection()?.removeAllRanges();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("scroll", handleScroll, true);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isExpanded, isTextSelected, currentSelection, selectionRect]);
+
+  const handleHighlight = () => {
+    if (currentSelection) {
+      console.log("Highlighted text:", currentSelection.text);
+      window.getSelection()?.removeAllRanges();
+      setIsTextSelected(false);
+      setCurrentSelection(null);
+    }
+  };
+
+  const handleNote = () => {
+    console.log("Note clicked");
+  };
+
+  const handleSubmit = async (text: string) => {
+    console.log("Submitted:", text);
+
+    if (currentSelection) {
+      const range = currentSelection.range;
+
+      if (range.endContainer.nodeType === Node.TEXT_NODE) {
+        const endContainer = range.endContainer;
+        const endOffset = range.endOffset;
+        const originalText = endContainer.textContent || "";
+        const selectedText = currentSelection.text;
+
+        // Split text
+        const beforeText = originalText.slice(0, endOffset);
+        const afterText = originalText.slice(endOffset);
+
+        // Get the parent block element
+        let parentBlock = endContainer.parentElement;
+        while (parentBlock && !["P", "DIV"].includes(parentBlock.tagName)) {
+          parentBlock = parentBlock.parentElement;
+        }
+
+        if (parentBlock) {
+          // Store the original parent block content and structure
+          const originalContent = parentBlock.cloneNode(true);
+
+          // Create a new container for all content
+          const newContainer = document.createElement("div");
+          newContainer.style.cssText = `
+            display: block;
+            width: 100%;
+          `;
+
+          // Create the before text container
+          const beforeContainer = document.createElement("div");
+          beforeContainer.textContent = beforeText;
+          beforeContainer.style.cssText = `
+            display: block;
+            margin-bottom: 1.5rem;
+            font-size: 1.125rem;
+            line-height: 1.75rem;
+          `;
+
+          // Create the note container
+          const noteContainer = document.createElement("div");
+          noteContainer.style.cssText = `
+            display: block;
+            margin: 1.5rem 0;
+          `;
+
+          // Create the after text container
+          const afterContainer = document.createElement("div");
+          afterContainer.textContent = afterText;
+          afterContainer.style.cssText = `
+            display: block;
+            margin-top: 1.5rem;
+            font-size: 1.125rem;
+            line-height: 1.75rem;
+          `;
+
+          // Render the Note component with loading state
+          const root = createRoot(noteContainer);
+          root.render(
+            <Note
+              text=""
+              isLoading={true}
+              onDelete={() => {
+                if (parentBlock) {
+                  parentBlock.parentElement?.replaceChild(
+                    originalContent,
+                    parentBlock
+                  );
+                }
+                setNotes((prev) =>
+                  prev.filter((note) => note.container !== noteContainer)
+                );
+              }}
+            />
+          );
+
+          // Clear and rebuild the content structure
+          parentBlock.textContent = "";
+          newContainer.appendChild(beforeContainer);
+          newContainer.appendChild(noteContainer);
+          newContainer.appendChild(afterContainer);
+          parentBlock.appendChild(newContainer);
+
+          const noteId = crypto.randomUUID();
+          setNotes((prev) => [
+            ...prev,
+            {
+              text,
+              id: noteId,
+              range,
+              container: noteContainer,
+            },
+          ]);
+
+          try {
+            // Call AI API
+            const response = await fetch(API_ENDPOINT, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                question: text,
+                context: selectedText,
+              }),
+            });
+
+            if (!response.ok) throw new Error('API request failed');
+            
+            const aiResponse = await response.json();
+
+            // Update note with AI response
+            root.render(
+              <Note
+                text={aiResponse.answer}
+                isLoading={false}
+                onDelete={() => {
+                  if (parentBlock) {
+                    parentBlock.parentElement?.replaceChild(
+                      originalContent,
+                      parentBlock
+                    );
+                  }
+                  setNotes((prev) =>
+                    prev.filter((note) => note.container !== noteContainer)
+                  );
+                }}
+              />
+            );
+          } catch (error) {
+            console.error('Error getting AI response:', error);
+            // Update note with error state
+            root.render(
+              <Note
+                text="Sorry, I couldn't generate an answer at this time. Please try again later."
+                isLoading={false}
+                onDelete={() => {
+                  if (parentBlock) {
+                    parentBlock.parentElement?.replaceChild(
+                      originalContent,
+                      parentBlock
+                    );
+                  }
+                  setNotes((prev) =>
+                    prev.filter((note) => note.container !== noteContainer)
+                  );
+                }}
+              />
+            );
+          }
+
+          // After creating the note, hide the expandable prompt
+          setIsTextSelected(false);
+          setCurrentSelection(null);
+          window.getSelection()?.removeAllRanges();
+        }
+      }
+    }
+
+    setIsExpanded(false);
+  };
+
+  const handleExpandCollapse = (expanded: boolean) => {
+    setIsExpanded(expanded);
+
+    if (expanded && currentSelection) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(currentSelection.range);
+      }
+    }
+  };
 
   return (
     <div className="relative">
       <div className="fixed top-0 left-0 w-full z-50">
         <TopProgressBar />
       </div>
-      <div className="mx-auto max-w-[688px]">
+      <div className="mx-auto max-w-[688px] select-text">
         <div className="w-[688px] flex flex-col pt-16 gap-16">
           <div className="h-[142px] flex-col justify-start items-start gap-4 inline-flex">
             <div className="justify-start items-center gap-4 inline-flex">
@@ -51,7 +328,7 @@ function App() {
               or chat with people, just like Siri or Alexa. It understands what
               people say or type and helps the program respond in a useful way.
               <br />
-              This means an Amazon Lex chatbot doesn’t just respond, but also
+              This means an Amazon Lex chatbot doesn't just respond, but also
               uses AI/ML to understand the user's goals and processes requests
               about their bank balances and transactions. You can even converse
               with your BankerBot using voice commands!
@@ -72,7 +349,24 @@ function App() {
           </div>
         </div>
       </div>
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 mb-36 z-50">
+      {isTextSelected && (
+        <div
+          className="fixed z-[9999] w-full left-0 flex justify-center"
+          style={{
+            top: `${selectionPosition.y}px`,
+            transform: "translateY(-100%)",
+            pointerEvents: "auto",
+          }}
+        >
+          <ExpandablePrompt
+            onHighlight={handleHighlight}
+            onNote={handleNote}
+            onSubmit={handleSubmit}
+            onExpandChange={handleExpandCollapse}
+          />
+        </div>
+      )}
+      <div className="fixed bottom-4 left-0 w-full z-50">
         <LearningToolbar />
       </div>
     </div>

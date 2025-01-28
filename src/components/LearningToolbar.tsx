@@ -13,8 +13,8 @@ const LearningToolbar: React.FC<LearningToolbarProps> = ({
   onSettings,
 }) => {
   return (
-    // Container to center the toolbar
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 flex justify-center items-center">
+    // Container for the toolbar
+    <div className="flex justify-center items-center">
       {/* Main toolbar container */}
       <div className="w-fit h-20 flex-col justify-start items-center gap-[27px] inline-flex">
         {/* Toolbar content with evenly spaced children */}

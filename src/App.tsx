@@ -8,14 +8,6 @@ function App() {
   const [selectedOS, setSelectedOS] = useState<"MacOS" | "Windows" | "Linux">(
     "MacOS"
   );
-  const [notes, setNotes] = useState<
-    Array<{
-      text: string;
-      range: Range;
-      id: string;
-      container: HTMLElement;
-    }>
-  >([]);
 
   return (
     <div className="relative">
